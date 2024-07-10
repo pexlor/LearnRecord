@@ -16,7 +16,7 @@
 
     也是一个老生常谈的性能损耗，这里主要介绍几个容易被疏忽的场景：
 
-    Member Initialization构造函数
+### Member Initialization构造函数
     
 ``` 
 class C {  
@@ -37,38 +37,42 @@ int main() {
   如果A、B是非平凡的类，会各被复制两次，在传入构造函数时一次，在构造时一次。C的构造函数应当改为：
 
   C(A a, B b): a_(std::move(a)), b_(std::move(b)){}
-这种写法是clang-tidy推荐的clang.llvm.org/extra... ，相比传const引用进来，如果外面也是传右值，则完全没有拷贝。
+  这种写法是clang-tidy推荐的clang.llvm.org/extra... ，相比传const引用进来，如果外面也是传右值，则完全没有拷贝。
 
-For循环
-
+### For循环
+```
 std::vector<std::string> vec;
 for(std::string s: vec){
   // ...
 }
+```
+  
 这里每个string会被复制一次，改为for(const std::string& s: vec)即可.
 
-Lambda捕获
-
+### Lambda捕获
+```
 A a;
 auto f = [a]{};
-lambda函数在值捕获时会将被捕获的对象拷贝一次，可以根据需求考虑使用引用捕获auto f = [&a]{};或者用std::move捕获初始化auto f = [a = std::move(a)]{};（仅限C++14以后）。
+```
+lambda函数在值捕获时会将被捕获的对象拷贝一次，可以根据需求考虑使用引用捕获 ```auto f = [&a]{};`` 或者用std::move捕获初始化 ```auto f = [a = std::move(a)]{};```（仅限C++14以后）。
 
-隐式类型转换
-
+### 隐式类型转换
+```
 std::unordered_map<int, std::string> map;
 for(const std::pair<int, std::string>& p: map){
   // ...
 }
-这是一个很容易被忽视的坑点，这段代码用了const引用，但是因为类型错了，所以还是会发生拷贝，因为unordered_map element的类型是std::pair<const int, std::string>，所以在遍历时，推荐使用const auto&，对于map类型，也可以使用结构化绑定（参考我的另一篇文章《C++17在业务代码中最好用的十个特性 》）。
+```
+这是一个很容易被忽视的坑点，这段代码用了const引用，但是因为类型错了，所以还是会发生拷贝，因为unordered_map element的类型是```std::pair<const int, std::string>```，所以在遍历时，推荐使用const auto&，对于map类型，也可以使用结构化绑定。
 
-（三）隐形的析构
+## （三）隐形的析构
 
 在C++代码中，我们几乎不会主动去调用类的析构函数，都是靠实例离开作用域后自动析构。而“隐形”的析构调用，也会导致我们的程序运行变慢：
 
 复杂类型的析构
 
 我们的业务代码中有这样一种接口
-
+```
 int Process(const Req& req, Resp* resp) {
   Context ctx = BuildContext(req); // 非常复杂的类型
   int ret = Compute(ctx, req, resp); // 主要的业务逻辑
@@ -80,12 +84,13 @@ int Api(const Req& req, Resp* resp) {
   int ret = Process(req, resp);
   PrintTime();
 }
+```
 在日志中，Process函数内打印的时间和PrintTime打印的时间竟然差了20毫秒，而我们当时接口的总耗时也不过几十毫秒，我当时百思不得其解，还是靠我老板tomtang一语道破先机，原来是析构Context足足花了20ms。后面我们实现了Context的池化，直接将接口耗时降了20%。
 
-平凡析构类型
+### 平凡析构类型
 
 如何定义类的析构函数也大有讲究，看下下面这段代码：
-
+```
 class A {
  public:
   int i;
@@ -96,15 +101,17 @@ class A {
 A get() {
   return A{41, 42};
 }
+```
 get函数对应的汇编代码是：
-
+```
 get():                                # @get()
         movq    %rdi, %rax
         movabsq $180388626473, %rcx             # imm = 0x2A00000029
         movq    %rcx, (%rdi)
         retq
+```
 而如果我能把析构函数改一下：
-
+```
 class A {
  public:
   int i;
@@ -115,56 +122,59 @@ class A {
 A get() {
   return A{41, 42};
 }
+```
 对应的汇编代码则变成了：
-
+```
 get():                                # @get()
         movabsq $180388626473, %rax             # imm = 0x2A00000029
         retq
+```
 前者多了两次赋值，也多用了两个寄存器，原因是前者给类定义了一个自定义的析构函数（虽然啥也不干），会导致类为不可平凡析构类型(std::is_trivially_destructible)和不可平凡复制类型（std::is_trivially_copyable），根据C++的函数调用ABI规范，不能被直接放在返回的寄存器中（%rax），只能间接赋值。除此之外，不可平凡复制类型也不能作为编译器常量进行编译器运算。所以，如果你的类是平凡的（只有数值和数字，不涉及堆内存分配），千万不要随手加上析构函数！
 
 关于非平凡析构类型造成的性能损耗，后文还会多次提到。
 
-（四）滥用std::shared_ptr
+## （四）滥用std::shared_ptr
 
 C++核心指南是这样推荐智能指针的用法的：
 
-用 std::unique_ptr或 std::shared_ptr表达资源的所有权。
+1. 用 std::unique_ptr或 std::shared_ptr表达资源的所有权。
 
-不涉及所有权时，用裸指针。
+2. 不涉及所有权时，用裸指针。
 
-尽量使用std::unique_ptr，只有当资源需要被共享所有权时，再用std::shared_ptr。
+3. 尽量使用std::unique_ptr，只有当资源需要被共享所有权时，再用std::shared_ptr。
 
 但是在实际代码中，用std::shared_ptr的场景大概就是以下几种：
 
-小部分是因为代码作者是写python或者java来的，不会写没有gc的代码（比如apache arrow项目，所有数据全用std::shared_ptr，像是被apache的Java环境给荼毒了）。
+1. 小部分是因为代码作者是写python或者java来的，不会写没有gc的代码（比如apache arrow项目，所有数据全用std::shared_ptr，像是被apache的Java环境给荼毒了）。
 
-绝大部分是因为代码作者是会写C++的，但是太懒了，不想梳理内存资源模型。不得不说，std::shared_ptr确实是懒人的福音，既保证了资源的安全，又不用梳理资源的所有权模型。
+2. 绝大部分是因为代码作者是会写C++的，但是太懒了，不想梳理内存资源模型。不得不说，std::shared_ptr确实是懒人的福音，既保证了资源的安全，又不用梳理资源的所有权模型。
 
-很小一部分是因为确实需要使用std::shared_ptr的场景（不到10%）。我能想到的必须用std::shared_ptr的场景有：异步析构，缓存。除此之外想不出任何必须的场景，欢迎小伙伴们在评论区补充。
+3. 很小一部分是因为确实需要使用std::shared_ptr的场景（不到10%）。我能想到的必须用std::shared_ptr的场景有：异步析构，缓存。除此之外想不出任何必须的场景，欢迎小伙伴们在评论区补充。
 
-实际上，std::shared_ptr的构造、复制和析构都是非常重的操作，因为涉及到原子操作，std::shared_ptr是要比裸指针和std::unique_ptr慢10%～20%的。即使用了std::shared_ptr也要使用std::move和引用等等，尽量避免拷贝。
+4. 实际上，std::shared_ptr的构造、复制和析构都是非常重的操作，因为涉及到原子操作，std::shared_ptr是要比裸指针和std::unique_ptr慢10%～20%的。即使用了std::shared_ptr也要使用std::move和引用等等，尽量避免拷贝。
 
 std::shared_ptr还有个陷阱是一定要使用std::make_shared<T>()而不是std::shared_ptr<T>(new T)来构造，因为后者会分配两次内存，且原子计数和数据本身的内存是不挨着的，不利于cpu缓存。
 
-（五）类型擦除：std::function和std::any
+## （五）类型擦除：std::function和std::any
 
 std::function，顾名思义，可以封装任何可被调用的对象，包括常规函数、类的成员函数、有operator()定义的类、lambda函数等等，当我们需要存储函数时std::function非常好用，但是std::function是有成本的：
 
-std::function要占用32个字节，而函数指针只需要8个字节
+1. std::function要占用32个字节，而函数指针只需要8个字节
 
-std::function本质上是一个虚函数调用，因此虚函数的问题std::function都有，比如无法内联
+2. std::function本质上是一个虚函数调用，因此虚函数的问题std::function都有，比如无法内联
 
-std::function可能涉及堆内存分配，比如lambda捕获了大量值时，用std::function封装会需要在堆上分配内存
+3. std::function可能涉及堆内存分配，比如lambda捕获了大量值时，用std::function封装会需要在堆上分配内存
 
 因此我们只应在必须时才使用std::function，比如需要存储一个不确定类型的函数。而在只需要多态调用的，完全可以用模版静态派发：
-
+```
 template <typename Func>
 void Run(Func&& f){
   f();
 }
+```
 std::any同理，用类型擦除的机制可以存储任何类型，但是也不推荐使用。
 
-（六）std::variant和std::optional
+## （六）std::variant和std::optional
 
 我在我的另一篇文章《C++17在业务代码中最好用的十个特性 》大肆吹捧了一波std::variant和std::optional，但是说实话，C++的实现还是有些性能开销的，这里以std::optional为例介绍：
 
