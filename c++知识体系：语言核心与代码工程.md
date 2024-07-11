@@ -38,3 +38,46 @@ C++知识体系的搭建基于笔者过往的编程经验，而具体的知识�
 auto：变量类型推断  
 decltype：表达式类型推断
 
+
+## 1.2 for range
+## 1.3 function&bind&lambda
+std::function 快速创建一个函数对象 
+std::bind
+bind：绑定函数参数 
+lambda 匿名函数
+## 1.4 smart pointer(智能指针)
+std::unique_ptr、std::shared_ptr和 std::weak_ptr
+## 1.5 explicit与default与delete
+## 1.6 右值引用与移动构造函数
+## 1.7 委托构造与继承构造 
+## 1.8 random
+## 1.9 to_string()函数
+## 1.10 sctdint
+
+# 2. 面向对象
+
+## 2.1 对象创建与内存管理
+## 2.2 多继承与内存布局
+## 2.3 虚函数与纯虚函数
+## 2.4 运算符重载 
+## 2.5 访问控制  
+
+# 3. template 模板
+
+## 3.1. 函数模板
+3.2. 类模板
+3.3. 可变参数
+3.4. typename与class
+3.5. STL中的模板
+
+泛型编程，C++最强大的地方，也是最复杂的地方
+基于模版的编程，主要用于程序库的编写，例如STL
+3.6. 元编程
+
+关于元编程，主要用于编写程序库，实际工程使用较少
+
+# 4. STL （泛型编程典范）
+容器
+算法
+迭代器
+STL使用介绍
