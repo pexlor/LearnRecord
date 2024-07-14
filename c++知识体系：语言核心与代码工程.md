@@ -122,12 +122,16 @@ lambda 创建匿名函数,本人经常使用在需要零时绑定函数的时候
 ![c++01](/res/c++04.webp)
 
 ## 1.4 smart pointer(智能指针)
-std::auto_ptr(已弃用)
+std::auto_ptr(已弃用)  
 std::unique_ptr
-std::shared_ptr
+std::shared_ptr 
 std::weak_ptr
 ## 1.5 explicit与default与delete
+explicit : 只能显式构造，禁止隐式构造
+default ：声明构造函数为默认构造函数
+delete ：禁止对象的拷贝与赋值（std::unqiye_ptr就是通过delete修饰来禁止对象的拷贝的）
 ## 1.6 右值引用与移动构造函数
+值得深究
 ## 1.7 委托构造与继承构造 
 ## 1.8 random
 ## 1.9 to_string()函数
