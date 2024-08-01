@@ -125,7 +125,7 @@ lambda 创建匿名函数,本人经常使用在需要零时绑定函数的时候
 std::auto_ptr(已弃用)  
 std::unique_ptr
 std::shared_ptr 
-std::weak_ptr
+std::~~weak_ptr~~
 ## 1.5 explicit与default与delete
 explicit : 只能显式构造，禁止隐式构造
 default ：声明构造函数为默认构造函数
