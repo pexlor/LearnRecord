@@ -143,12 +143,186 @@ msgrcv(int msqid, void *msg_ptr, size_t msg_sz, long int msgtype, int msgflg);
 int msgctl(int msqid, int cmd, struct msqid_ds *buf);
 
 ```
-1. 信号量
-2. 共享内存
-3. 信号
+
+4. 共享内存
+>共享内存是两个或多个进程之间共享的内存,允许多个进程访问和共享相同内存块。每个进程都有自己的地址空间；如果任何进程想要将某些信息从其自己的地址空间与其他进程进行通信，则只能使用 IPC（进程间通信）共享内存技术。
+>共享内存是最快的进程间通信机制。操作系统将多个进程的地址空间中的内存段映射到该内存段中读取和写入，而无需调用操作系统函数
+```
+#include <sys/ipc.h>   
+#include <sys/shm.h>   
+
+int shmget (key_t key, size_t size, int shmflg);  //用于创建共享内存段
+
+void *shmat(int shmid, const void *shmaddr, int shmflg);  //用于将共享段与进程的地址空间附加
+```
+
+写进程：
+```
+#include<stdio.h>  
+#include<stdlib.h>  
+#include<unistd.h>  
+#include<sys/shm.h>  
+#include<string.h>  
+int main()  
+{  
+	int i;  
+	void *shared_memory;  
+	char buff[100];  
+	int shmid;  
+	shmid=shmget((key_t)2345, 1024, 0666|IPC_CREAT);   
+	//creates shared memory segment with key 2345, having size 1024 bytes. 
+	printf("Key of shared memory is %d\n",shmid);  
+	shared_memory=shmat(shmid,NULL,0);   
+	//process attached to shared memory segment  
+	printf("Process attached at %p\n",shared_memory);   
+	//this prints the address where the segment is attached with this process  
+	printf("Enter some data to write to shared memory\n");  
+	read(0,buff,100); //get some input from user  
+	strcpy(shared_memory,buff); //data written to shared memory  
+	printf("You wrote : %s\n",(char *)shared_memory);  
+}  
+```
+读进程：
+```
+#include<stdio.h>  
+#include<stdlib.h>  
+#include<unistd.h>  
+#include<sys/shm.h>  
+#include<string.h>  
+int main()  
+{  
+	int i;  
+	void *shared_memory;  
+	char buff[100];  
+	int shmid;  
+	shmid=shmget((key_t)2345, 1024, 0666);  
+	printf("Key of shared memory is %d\n",shmid);  
+	shared_memory=shmat(shmid,NULL,0); //process attached to shared memory segment  
+	printf("Process attached at %p\n",shared_memory);  
+	printf("Data read from shared memory is : %s\n",(char *)shared_memory);  
+}  
+```
+5. 信号
+信号（Signals）是一种重要的机制，用于通知进程发生了某种事件或异常。
+信号是一种异步通知机制，用于在软件层面向进程发送通知
+每种信号都由一个唯一的整数编号表示
+
+```
+kill(pid, sig) ///向指定的进程 pid 发送信号 sig
+
+
+signal(sig, handler) ///进程可以通过注册信号处理函数来捕获和处理信号
+sigaction(sig, &act, &oldact)
+
+void handler(int sig) ///信号处理函数是一个特殊的函数，用来处理特定信号发生时的行为。这些函数必须满足特定的格式
+```
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+#define SIG_CUSTOM SIGUSR1  // 自定义信号
+
+void error_handling(char *msg) {
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
+int main() {
+    pid_t pid = fork();  // 创建子进程
+    if (pid < 0) {
+        error_handling("Fork error");
+    } else if (pid == 0) {
+        // 子进程（接收进程）
+        execl("./receiver", "receiver", NULL);  // 执行接收进程程序
+        error_handling("Exec error");
+    } else {
+        // 父进程（发送进程）
+        sleep(1);  // 等待子进程初始化完毕
+
+        printf("Sending signal to child process (PID: %d)...\
+", pid);
+        if (kill(pid, SIG_CUSTOM) == -1) {
+            error_handling("Kill error");
+        }
+
+        printf("Signal sent.\
+");
+    }
+
+    return 0;
+}
+```
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+#define SIG_CUSTOM SIGUSR1  // 自定义信号
+
+void sig_handler(int sig) {
+    if (sig == SIG_CUSTOM) {
+        printf("Received custom signal SIGUSR1.\
+");
+    }
+}
+
+int main() {
+    struct sigaction act;
+    act.sa_handler = sig_handler;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+
+    // 设置自定义信号的处理函数
+    if (sigaction(SIG_CUSTOM, &act, NULL) == -1) {
+        perror("Sigaction error");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Waiting for signal...\
+");
+
+    while (1) {
+        sleep(1);  // 让程序持续运行
+    }
+
+    return 0;
+}
+
+```
+
 4. socket
+> 详细见网络编程
+```
+socket()//创建套接字，返回一个文件描述符。
+bind()// 将套接字绑定到一个地址，如 IP 地址和端口号。
+listen()// 仅用于流套接字，将套接字标记为被动套接字，等待连接请求。
+accept()// 仅用于流套接字，接受客户端的连接请求，返回一个新的文件描述符用于与客户端通信。
+connect()// 仅用于流套接字，连接到远程套接字（客户端）。
+send();recv()// 发送和接收数据。
+sendto();recvfrom()// 用于数据报套接字，发送和接收数据报。
+```
 
 ## 同步与互斥
+### 线程同步与互斥
+1. 互斥锁
+2. 自旋锁
+3. 信号量
+4. 条件变量
+5. 读写锁
+6. 屏障
+
+### 进程同步方式
+1. 信号量
+2. 文件锁
+3. 互斥量
+4. 无锁CAS
+5. 校验方式
+
 
 # 文件IO
 
