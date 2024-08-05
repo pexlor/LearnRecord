@@ -17,8 +17,6 @@ I/O 是决定网络服务器性能瓶颈的关键，而传统的 Linux I/O 机�
 价格足够便宜：价格低廉，所有类型的计算机都能配备
 但是现实往往是残酷的，我们目前的计算机技术无法同时满足上述的三个条件，于是现代计算机的存储器设计采用了一种分层次的结构：
 
-
-
 从顶至底，现代计算机里的存储器类型分别有：寄存器、高速缓存、主存和磁盘，这些存储器的速度逐级递减而容量逐级递增。存取速度最快的是寄存器，因为寄存器的制作材料和 CPU 是相同的，所以速度和 CPU 一样快，CPU 访问寄存器是没有时延的，然而因为价格昂贵，因此容量也极小，一般 32 位的 CPU 配备的寄存器容量是 32✖️32 Bit，64 位的 CPU 则是 64✖️64 Bit，不管是 32 位还是 64 位，寄存器容量都小于 1 KB，且寄存器也必须通过软件自行管理。
 
 第二层是高速缓存，也即我们平时了解的 CPU 高速缓存 L1、L2、L3，一般 L1 是每个 CPU 独享，L3 是全部 CPU 共享，而 L2 则根据不同的架构设计会被设计成独享或者共享两种模式之一，比如 Intel 的多核芯片采用的是共享 L2 模式而 AMD 的多核芯片则采用的是独享 L2 模式。
@@ -60,15 +58,11 @@ add ax, ax
 
 然后就是 交换（swapping）技术，这种技术简单来说就是动态地把程序在内存和磁盘之间进行交换保存，要运行一个进程的时候就把程序的代码段和数据段调入内存，然后再把程序封存，存入磁盘，如此反复。为什么要这么麻烦？因为前面那两种重定位技术的前提条件是计算机内存足够大，能够把所有要运行的进程地址空间都加载进主存，才能够并发运行这些进程，但是现实往往不是如此，内存的大小总是有限的，所有就需要另一类方法来处理内存超载的情况，第一种便是简单的交换技术：
 
-
-
 先把进程 A 换入内存，然后启动进程 B 和 C，也换入内存，接着 A 被从内存交换到磁盘，然后又有新的进程 D 调入内存，用了 A 退出之后空出来的内存空间，最后 A 又被重新换入内存，由于内存布局已经发生了变化，所以 A 在换入内存之时会通过软件或者在运行期间通过硬件（基址寄存器和界限寄存器）对其内存地址进行重定位，多数情况下都是通过硬件。
 
 另一种处理内存超载的技术就是虚拟内存技术了，它比交换（swapping）技术更复杂而又更高效，是目前最新应用最广泛的存储器抽象技术：
 
 虚拟内存的核心原理是：为每个程序设置一段"连续"的虚拟地址空间，把这个地址空间分割成多个具有连续地址范围的页 (page)，并把这些页和物理内存做映射，在程序运行期间动态映射到物理内存。当程序引用到一段在物理内存的地址空间时，由硬件立刻执行必要的映射；而当程序引用到一段不在物理内存中的地址空间时，由操作系统负责将缺失的部分装入物理内存并重新执行失败的指令：
-
-
 
 虚拟地址空间按照固定大小划分成被称为页（page）的若干单元，物理内存中对应的则是页框（page frame）。这两者一般来说是一样的大小，如上图中的是 4KB，不过实际上计算机系统中一般是 512 字节到 1 GB，这就是虚拟内存的分页技术。因为是虚拟内存空间，每个进程分配的大小是 4GB (32 位架构)，而实际上当然不可能给所有在运行中的进程都分配 4GB 的物理内存，所以虚拟内存技术还需要利用到前面介绍的交换（swapping）技术，在进程运行期间只分配映射当前使用到的内存，暂时不使用的数据则写回磁盘作为副本保存，需要用的时候再读入内存，动态地在磁盘和内存之间交换数据。
 
@@ -76,11 +70,7 @@ add ax, ax
 
 进程在运行期间产生的内存地址都是虚拟地址，如果计算机没有引入虚拟内存这种存储器抽象技术的话，则 CPU 会把这些地址直接发送到内存地址总线上，直接访问和虚拟地址相同值的物理地址；如果使用虚拟内存技术的话，CPU 则是把这些虚拟地址通过地址总线送到内存管理单元（Memory Management Unit，MMU），MMU 将虚拟地址映射为物理地址之后再通过内存总线去访问物理内存：
 
-
-
 虚拟地址（比如 16 位地址 8196=0010 000000000100）分为两部分：虚拟页号（高位部分）和偏移量（低位部分），虚拟地址转换成物理地址是通过页表（page table）来实现的，页表由页表项构成，页表项中保存了页框号、修改位、访问位、保护位和 “在/不在” 位等信息，从数学角度来说页表就是一个函数，入参是虚拟页号，输出是物理页框号，得到物理页框号之后复制到寄存器的高三位中，最后直接把 12 位的偏移量复制到寄存器的末 12 位构成 15 位的物理地址，即可以把该寄存器的存储的物理内存地址发送到内存总线：
-
-
 
 在 MMU 进行地址转换时，如果页表项的 “在/不在” 位是 0，则表示该页面并没有映射到真实的物理页框，则会引发一个缺页中断，CPU 陷入操作系统内核，接着操作系统就会通过页面置换算法选择一个页面将其换出 (swap)，以便为即将调入的新页面腾出位置，如果要换出的页面的页表项里的修改位已经被设置过，也就是被更新过，则这是一个脏页 (dirty page)，需要写回磁盘更新改页面在磁盘上的副本，如果该页面是"干净"的，也就是没有被修改过，则直接用调入的新页面覆盖掉被换出的旧页面即可。
 
@@ -93,8 +83,6 @@ add ax, ax
 一般来说，我们在编写程序操作 Linux I/O 之时十有八九是在用户空间和内核空间之间传输数据，因此有必要先了解一下 Linux 的用户态和内核态的概念。
 
 首先是用户态和内核态：
-
-
 
 从宏观上来看，Linux 操作系统的体系架构分为用户态和内核态（或者用户空间和内核）。内核从本质上看是一种软件 —— 控制计算机的硬件资源，并提供上层应用程序 (进程) 运行的环境。用户态即上层应用程序 (进程) 的运行空间，应用程序 (进程) 的执行必须依托于内核提供的资源，这其中包括但不限于 CPU 资源、存储资源、I/O 资源等等。
 
@@ -113,12 +101,9 @@ add ax, ax
 内核空间；
 硬件。
 
-
 Linux I/O
 
 I/O 缓冲区
-
-
 
 在 Linux 中，当程序调用各类文件操作函数后，用户数据（User Data）到达磁盘（Disk）的流程如上图所示。
 
@@ -132,11 +117,7 @@ Page Cache 会通过页面置换算法如 LRU 定期淘汰旧的页面，加载�
 
 在 Linux 还不支持虚拟内存技术之前，还没有页的概念，因此 Buffer Cache 是基于操作系统读写磁盘的最小单位 – 块（block）来进行的，所有的磁盘块操作都是通过 Buffer Cache 来加速，Linux 引入虚拟内存的机制来管理内存后，页成为虚拟内存管理的最小单位，因此也引入了 Page Cache 来缓存 Linux 文件内容，主要用来作为文件系统上的文件数据的缓存，提升读写性能，常见的是针对文件的 read()/write() 操作，另外也包括了通过 mmap() 映射之后的块设备，也就是说，事实上 Page Cache 负责了大部分的块设备文件的缓存工作。而 Buffer Cache 用来在系统对块设备进行读写的时候，对块进行数据缓存的系统来使用，实际上负责所有对磁盘的 I/O 访问：
 
-
-
 因为 Buffer Cache 是对粒度更细的设备块的缓存，而 Page Cache 是基于虚拟内存的页单元缓存，因此还是会基于 Buffer Cache，也就是说如果是缓存文件内容数据就会在内存里缓存两份相同的数据，这就会导致同一份文件保存了两份，冗余且低效。另外一个问题是，调用 write 后，有效数据是在 Buffer Cache 中，而非 Page Cache 中。这就导致 mmap 访问的文件数据可能存在不一致问题。为了规避这个问题，所有基于磁盘文件系统的 write，都需要调用 update_vm_cache() 函数，该操作会把调用 write 之后的 Buffer Cache 更新到 Page Cache 去。由于有这些设计上的弊端，因此在 Linux 2.4 版本之后，kernel 就将两者进行了统一，Buffer Cache 不再以独立的形式存在，而是以融合的方式存在于 Page Cache 中：
-
-
 
 融合之后就可以统一操作 Page Cache 和 Buffer Cache：处理文件 I/O 缓存交给 Page Cache，而当底层 RAW device 刷新数据时以 Buffer Cache 的块单位来实际处理。
 
@@ -155,13 +136,9 @@ DMA I/O
 
 比如发起系统调用 read()：
 
-
-
 中断驱动 I/O
 
 第二种 I/O 模式是利用中断来实现的：
-
-
 
 流程如下：
 
@@ -179,8 +156,6 @@ DMA I/O
 DMA 全称是 Direct Memory Access，也即直接存储器存取，是一种用来提供在外设和存储器之间或者存储器和存储器之间的高速数据传输。整个过程无须 CPU 参与，数据直接通过 DMA 控制器进行快速地移动拷贝，节省 CPU 的资源去做其他工作。
 
 目前，大部分的计算机都配备了 DMA 控制器，而 DMA 技术也支持大部分的外设和存储器。借助于 DMA 机制，计算机的 I/O 过程就能更加高效：
-
-
 
 DMA 控制器内部包含若干个可以被 CPU 读写的寄存器：一个主存地址寄存器 MAR（存放要交换数据的主存地址）、一个外设地址寄存器 ADR（存放 I/O 设备的设备码，或者是设备信息存储区的寻址信息）、一个字节数寄存器 WC（对传送数据的总字数进行统计）、和一个或多个控制寄存器。
 
@@ -203,8 +178,6 @@ Linux 中传统的 I/O 读写是通过 read()/write() 系统调用完成的，re
 ssize_t read(int fd, void *buf, size_t count);
 ssize_t write(int fd, const void *buf, size_t count);
 一次完整的读磁盘文件然后写出到网卡的底层传输过程如下：
-
-
 
 可以清楚看到这里一共触发了 4 次用户态和内核态的上下文切换，分别是 read()/write() 调用和返回时的切换，2 次 DMA 拷贝，2 次 CPU 拷贝，加起来一共 4 次拷贝操作。
 
@@ -236,7 +209,6 @@ Zero-copy 的实现方式有哪些？
 绕过内核的直接 I/O：允许在用户态进程绕过内核直接和硬件进行数据传输，内核在传输过程中只负责一些管理和辅助的工作。这种方式其实和第一种有点类似，也是试图避免用户空间和内核空间之间的数据传输，只是第一种方式是把数据传输过程放在内核态完成，而这种方式则是直接绕过内核和硬件通信，效果类似但原理完全不同。
 内核缓冲区和用户缓冲区之间的传输优化：这种方式侧重于在用户进程的缓冲区和操作系统的页缓存之间的 CPU 拷贝的优化。这种方法延续了以往那种传统的通信方式，但更灵活。
 
-
 减少甚至避免用户空间和内核空间之间的数据拷贝
 
 mmap()
@@ -246,8 +218,6 @@ mmap()
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 int munmap(void *addr, size_t length);
 一种简单的实现方案是在一次读写过程中用 Linux 的另一个系统调用 mmap() 替换原先的 read()，mmap() 也即是内存映射（memory map）：把用户进程空间的一段内存缓冲区（user buffer）映射到文件所在的内核缓冲区（kernel buffer）上。
-
-
 
 利用 mmap() 替换 read()，配合 write() 调用的整个流程如下：
 
@@ -282,8 +252,6 @@ ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
 
 out_fd 和 in_fd 分别代表了写入和读出的文件描述符，in_fd 必须是一个指向文件的文件描述符，且要能支持类 mmap() 内存映射，不能是 Socket 类型，而 out_fd 在 Linux 内核 2.6.33 版本之前只能是一个指向 Socket 的文件描述符，从 2.6.33 之后则可以是任意类型的文件描述符。off_t 是一个代表了 in_fd 偏移量的指针，指示 sendfile() 该从 in_fd 的哪个位置开始读取，函数返回后，这个指针会被更新成 sendfile() 最后读取的字节位置处，表明此次调用共读取了多少文件数据，最后的 count 参数则是此次调用需要传输的字节总数。
 
-
-
 使用 sendfile() 完成一次数据读写的流程如下：
 
 用户进程调用 sendfile() 从用户态陷入内核态；
@@ -307,8 +275,6 @@ sendﬁle() with DMA Scatter/Gather Copy
 上一小节介绍的 sendfile() 技术已经把一次数据读写过程中的 CPU 拷贝的降低至只有 1 次了，但是人永远是贪心和不知足的，现在如果想要把这仅有的一次 CPU 拷贝也去除掉，有没有办法呢？
 
 当然有！通过引入一个新硬件上的支持，我们可以把这个仅剩的一次 CPU 拷贝也给抹掉：Linux 在内核 2.4 版本里引入了 DMA 的 scatter/gather – 分散/收集功能，并修改了 sendfile() 的代码使之和 DMA 适配。scatter 使得 DMA 拷贝可以不再需要把数据存储在一片连续的内存空间上，而是允许离散存储，gather 则能够让 DMA 控制器根据少量的元信息：一个包含了内存地址和数据大小的缓冲区描述符，收集存储在各处的数据，最终还原成一个完整的网络包，直接拷贝到网卡而非套接字缓冲区，避免了最后一次的 CPU 拷贝：
-
-
 
 sendfile() + DMA gather 的数据传输过程如下：
 
@@ -356,8 +322,6 @@ bytes = splice(pfd[0], NULL, socket_fd, NULL, bytes, SPLICE_F_MOVE | SPLICE_F_MO
 assert(bytes != -1);
 数据传输过程图：
 
-
-
 使用 splice() 完成一次磁盘文件到网卡的读写过程如下：
 
 用户进程调用 pipe()，从用户态陷入内核态，创建匿名单向管道，pipe() 返回，上下文从内核态切换回用户态；
@@ -371,8 +335,6 @@ splice() 返回，上下文从内核态切换回用户态。
 我最开始了解 splice() 的时候，也是这个反应，但是深入学习它之后，才渐渐知晓个中奥妙，且听我细细道来：
 
 先来了解一下 pipe buffer 管道，管道是 Linux 上用来供进程之间通信的信道，管道有两个端：写入端和读出端，从进程的视角来看，管道表现为一个 FIFO 字节流环形队列：
-
-
 
 管道本质上是一个内存中的文件，也就是本质上还是基于 Linux 的 VFS，用户进程可以通过 pipe() 系统调用创建一个匿名管道，创建完成之后会有两个 VFS 的 file 结构体的 inode 分别指向其写入端和读出端，并返回对应的两个文件描述符，用户进程通过这两个文件描述符读写管道；管道的容量单位是一个虚拟内存的页，也就是 4KB，总大小一般是 16 个页，基于其环形结构，管道的页可以循环使用，提高内存利用率。 Linux 中以 pipe_buffer 结构体封装管道页，file 结构体里的 inode 字段里会保存一个 pipe_inode_info 结构体指代管道，其中会保存很多读写管道时所需的元信息，环形队列的头部指针页，读写时的同步机制如互斥锁、等待队列等：
 
@@ -414,7 +376,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 {
 ...
 
-	// 判断是写出 fd 是一个管道设备，则进入数据写入的逻辑
+    // 判断是写出 fd 是一个管道设备，则进入数据写入的逻辑
 	if (opipe) {
 		if (off_out)
 			return -ESPIPE;
@@ -427,18 +389,18 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 			offset = in->f_pos;
 		}
 
-		// 调用 do_splice_to 把文件内容写入管道
+    // 调用 do_splice_to 把文件内容写入管道
 		ret = do_splice_to(in, &offset, opipe, len, flags);
 
-		if (!off_in)
+    if (!off_in)
 			in->f_pos = offset;
 		else if (copy_to_user(off_in, &offset, sizeof(loff_t)))
 			ret = -EFAULT;
 
-		return ret;
+    return ret;
 	}
 
-	return -EINVAL;
+    return -EINVAL;
 }
 进入 do_splice_to() 之后，再调用 splice_read()：
 
@@ -450,24 +412,24 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 			       struct pipe_inode_info *, size_t, unsigned int);
 	int ret;
 
-	if (unlikely(!(in->f_mode & FMODE_READ)))
+    if (unlikely(!(in->f_mode & FMODE_READ)))
 		return -EBADF;
 
-	ret = rw_verify_area(READ, in, ppos, len);
+    ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
 
-	if (unlikely(len > MAX_RW_COUNT))
+    if (unlikely(len > MAX_RW_COUNT))
 		len = MAX_RW_COUNT;
 
-	// 判断文件的文件的 file 结构体的 f_op 中有没有可供使用的、支持 splice 的 splice_read 函数指针
+    // 判断文件的文件的 file 结构体的 f_op 中有没有可供使用的、支持 splice 的 splice_read 函数指针
 	// 因为是 splice() 调用，因此内核会提前给这个函数指针指派一个可用的函数
 	if (in->f_op->splice_read)
 		splice_read = in->f_op->splice_read;
 	else
 		splice_read = default_file_splice_read;
 
-	return splice_read(in, ppos, pipe, len, flags);
+    return splice_read(in, ppos, pipe, len, flags);
 }
 in->f_op->splice_read 这个函数指针根据文件描述符的类型不同有不同的实现，比如这里的 in 是一个文件，因此是 generic_file_splice_read()，如果是 socket 的话，则是 sock_splice_read()，其他的类型也会有对应的实现，总之我们这里将使用的是 generic_file_splice_read() 函数，这个函数会继续调用内部函数 __generic_file_splice_read 完成以下工作：
 
@@ -478,7 +440,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe, struct splice_pipe_desc *sp
 {
 ...
 
-	for (;;) {
+    for (;;) {
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
@@ -486,11 +448,11 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe, struct splice_pipe_desc *sp
 			break;
 		}
 
-		if (pipe->nrbufs < pipe->buffers) {
+    if (pipe->nrbufs < pipe->buffers) {
 			int newbuf = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
 			struct pipe_buffer *buf = pipe->bufs + newbuf;
 
-			// 写入数据到管道，没有真正拷贝数据，而是内存地址指针的移动，
+    // 写入数据到管道，没有真正拷贝数据，而是内存地址指针的移动，
 			// 把物理页框、偏移量和数据长度赋值给 pipe_buffer 完成数据入队操作
 			buf->page = spd->pages[page_nr];
 			buf->offset = spd->partial[page_nr].offset;
@@ -500,22 +462,22 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe, struct splice_pipe_desc *sp
 			if (spd->flags & SPLICE_F_GIFT)
 				buf->flags |= PIPE_BUF_FLAG_GIFT;
 
-			pipe->nrbufs++;
+    pipe->nrbufs++;
 			page_nr++;
 			ret += buf->len;
 
-			if (pipe->files)
+    if (pipe->files)
 				do_wakeup = 1;
 
-			if (!--spd->nr_pages)
+    if (!--spd->nr_pages)
 				break;
 			if (pipe->nrbufs < pipe->buffers)
 				continue;
 
-			break;
+    break;
 		}
 
-	...
+    ...
 }
 这里可以清楚地看到 splice() 所谓的写入数据到管道其实并没有真正地拷贝数据，而是玩了个 tricky 的操作：只进行内存地址指针的拷贝而不真正去拷贝数据。所以，数据 splice() 在内核中并没有进行真正的数据拷贝，因此 splice() 系统调用也是零拷贝。
 
@@ -550,23 +512,22 @@ if (ret == -1)
 
 read_notification(msg);
 
-
 uint32_t read_notification(struct msghdr *msg)
 {
 	struct sock_extended_err *serr;
 	struct cmsghdr *cm;
-	
-	cm = CMSG_FIRSTHDR(msg);
+
+    cm = CMSG_FIRSTHDR(msg);
 	if (cm->cmsg_level != SOL_IP &&
 		cm->cmsg_type != IP_RECVERR)
 			error(1, 0, "cmsg");
-	
-	serr = (void *) CMSG_DATA(cm);
+
+    serr = (void *) CMSG_DATA(cm);
 	if (serr->ee_errno != 0 ||
 		serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY)
 			error(1, 0, "serr");
-	
-	return serr->ee _ data;
+
+    return serr->ee _ data;
 }
 这个技术是基于 redhat 红帽在 2010 年给 Linux 内核提交的 virtio-net zero-copy 技术之上实现的，至于底层原理，简单来说就是通过 send() 把数据在用户缓冲区中的分段指针发送到 socket 中去，利用 page pinning 页锁定机制锁住用户缓冲区的内存页，然后利用 DMA 直接在用户缓冲区通过内存地址指针进行数据读取，实现零拷贝；具体的细节可以通过阅读 Willem de Bruijn 的论文 (PDF) 深入了解。
 
@@ -578,8 +539,6 @@ MSG_ZEROCOPY 目前只支持发送端，接收端暂不支持。
 绕过内核的直接 I/O
 
 可以看出，前面种种的 zero-copy 的方法，都是在想方设法地优化减少或者去掉用户态和内核态之间以及内核态和内核态之间的数据拷贝，为了实现避免这些拷贝可谓是八仙过海，各显神通，采用了各种各样的手段，那么如果我们换个思路：其实这么费劲地去消除这些拷贝不就是因为有内核在掺和吗？如果我们绕过内核直接进行 I/O 不就没有这些烦人的拷贝问题了吗？这就是绕过内核直接 I/O 技术：
-
-
 
 这种方案有两种实现方式：
 
@@ -638,8 +597,6 @@ COW 这种零拷贝技术比较适用于那种多读少写从而使得 COW 事�
 操作系统内核开发者们实现了一种叫 fbufs 的缓冲区共享的框架，也即快速缓冲区（ Fast Buffers ），使用一个 fbuf 缓冲区作为数据传输的最小单位，使用这种技术需要调用新的操作系统 API，用户区和内核区、内核区之间的数据都必须严格地在 fbufs 这个体系下进行通信。fbufs 为每一个用户进程分配一个 buffer pool，里面会储存预分配 (也可以使用的时候再分配) 好的 buffers，这些 buffers 会被同时映射到用户内存空间和内核内存空间。fbufs 只需通过一次虚拟内存映射操作即可创建缓冲区，有效地消除那些由存储一致性维护所引发的大多数性能损耗。
 
 传统的 Linux I/O 接口是通过把数据在用户缓冲区和内核缓冲区之间进行拷贝传输来完成的，这种数据传输过程中需要进行大量的数据拷贝，同时由于虚拟内存技术的存在，I/O 过程中还需要频繁地通过 MMU 进行虚拟内存地址到物理内存地址的转换，高速缓存的汰换以及 TLB 的刷新，这些操作均会导致性能的损耗。而如果利用 fbufs 框架来实现数据传输的话，首先可以把 buffers 都缓存到 pool 里循环利用，而不需要每次都去重新分配，而且缓存下来的不止有 buffers 本身，而且还会把虚拟内存地址到物理内存地址的映射关系也缓存下来，也就可以避免每次都进行地址转换，从发送接收数据的层面来说，用户进程和 I/O 子系统比如设备驱动程序、网卡等可以直接传输整个缓冲区本身而不是其中的数据内容，也可以理解成是传输内存地址指针，这样就就避免了大量的数据内容拷贝：用户进程/ IO 子系统通过发送一个个的 fbuf 写出数据到内核而非直接传递数据内容，相对应的，用户进程/ IO 子系统通过接收一个个的 fbuf 而从内核读入数据，这样就能减少传统的 read()/write() 系统调用带来的数据拷贝开销：
-
-
 
 发送方用户进程调用 uf_allocate 从自己的 buffer pool 获取一个 fbuf 缓冲区，往其中填充内容之后调用 uf_write 向内核区发送指向 fbuf 的文件描述符；
 I/O 子系统接收到 fbuf 之后，调用 uf_allocb 从接收方用户进程的 buffer pool 获取一个 fubf 并用接收到的数据进行填充，然后向用户区发送指向 fbuf 的文件描述符；

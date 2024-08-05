@@ -140,6 +140,8 @@ std::memory_order_consume具有弱的同步和内存序限制，即不会像std:
 
 # 泛型编程
 
+> https://borehole.blog.csdn.net/article/details/128314495?spm=1001.2014.3001.5502
+
 ## 简单的模板函数和模板类
 
 **模板函数**
