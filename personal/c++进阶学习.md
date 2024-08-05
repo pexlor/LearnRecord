@@ -35,7 +35,7 @@
    |  atomic_size_t  |              原子size_t类型，用于表示对象的大小。              |
    | atomic_ptrdiff_t |         原子ptrdiff_t类型，用于表示两个指针之间的距离。         |
 
-**也可以使用atomic`<type>`模版创建**
+**也可以使用atomic `<type>`模版创建**
 
 ## 原子类型函数
 
@@ -100,6 +100,7 @@ int main() {
 |   自由序列(非一致)   | 宽松的内存序列，它只保证操作的原子性，并不能保证多个变量之间的顺序性，也不能保证同一个变量在不同线程之间的可见顺序。 |      ⑥ memory_order_relaxed      |                                只关心某个变量是否被修改，不关心修改发生的时间。优点：提高性能；缺点：不明确执行顺序。场景：多应用于无依赖原子操作、事件通知等。                                |
 
 ### memory_order_relaxed
+
 memory_order_relaxed是宽松的内存序列，它只保证操作的原子性，并不能保证多个变量之间的顺序性，也不能保证同一个变量在不同线程之间的可见顺序
 
 ```
@@ -115,21 +116,115 @@ void read_y_then_x() {
     }  
 }
 ```
+
 ### memory_order_acquire 和memory_order_release
-memory_order_acquire保证本线程中,所有后续的读操作必须在本条原子操作完成后执行。  
-memory_order_release保证本线程中,所有之前的写操作完成后才能执行本条原子操作。  
+
+memory_order_acquire保证本线程中,所有后续的读操作必须在本条原子操作完成后执行。
+memory_order_release保证本线程中,所有之前的写操作完成后才能执行本条原子操作。
 
 ### memory_order_consume
+
 这个内存屏障与memory_order_acquire的功能相似，而且大多数编译器并没有实现这个屏障，而且正在修订中，暂时不鼓励使用 memory_order_consume 。
 std::memory_order_consume具有弱的同步和内存序限制，即不会像std::memory_order_release产生同步与关系。
 
 ### memory_order_acq_rel
+
 双向读写内存屏障，相当于结合了memory_order_release、memory_order_acquire。可以看见其他线程施加 release 语义的所有写入，同时自己的 release 结束后所有写入对其他施加 acquire 语义的线程可见
 表示线程中此屏障之前的的读写指令不能重排到屏障之后，屏障之后的读写指令也不能重排到屏障之前。此时需要不同线程都是用同一个原子变量，且都是用memory_order_acq_rel
 
 ### memory_order_seq_cst
+
 通常情况下，默认使用 memory_order_seq_cst
 如果是读取就是 acquire 语义，如果是写入就是 release 语义，如果是读取+写入就是 acquire-release 语义
 同时会对所有使用此 memory order 的原子操作进行同步，所有线程看到的内存操作的顺序都是一样的，就像单个线程在执行所有线程的指令一样。
 
 # 泛型编程
+
+## 简单的模板函数和模板类
+
+**模板函数**
+
+```
+/*
+*模板函数
+*/
+template <typename T>
+void printValue(const T& value) {
+    std::cout << "Value: " << value << std::endl;
+}
+```
+
+**模板类**
+
+```
+/*
+*模板类
+*/
+template <typename T, size_t size>
+class Array {
+ public:
+  Array();
+  T &at();
+  size_t size() const;
+ private:
+  T data_[size];
+};
+```
+
+**模板全局常量**
+必须由constexpr修饰
+
+```
+// 用于引导模板全局常量的模板类(用于判断一个类型的长度是否大于指针)
+template <typename T>
+struct IsMoreThanPtr {
+  static bool value = sizeof(T) > sizeof(void *);
+}
+// 全局模板常量
+template <typename T>
+constexpr inline bool IsMoreThanPtr_v = IsMoreThanPtr<T>::value;
+```
+
+**模板类型重命名**
+C++中的类型重命名主要有两种语法，一种是typedef，另一种是using
+
+**模板参数**
+C++的模板参数主要分为三种：
+类型，整数（或整数的衍生类型），模板
+
+## 模板特化
+
+> 如同我们在与他人交往时会根据对方的个性和需求进行特定的交流方式，编程中的模板特化也是一种特别对待某些类型的方式。它使我们能够为某些特定的类型提供专门的实现，而不是使用通用的模板.它允许程序员为模板提供特定类型或值的特定实现
+> 考虑以下的模板函数，它的目的是打印出变量的值：
+
+```
+template <typename T>
+void printValue(const T& value) {
+    std::cout << "Value: " << value << std::endl;
+}
+
+```
+
+但是，假设当 T 是一个 bool 类型时，我们想打印出 “True” 或 “False” 而不是 “1” 或 “0”。这时，我们可以使用模板特化：
+
+```
+template <>
+void printValue<bool>(const bool& value) {
+    std::cout << "Value: " << (value ? "True" : "False") << std::endl;
+}
+
+```
+
+### 优点和局限性
+
+|                 优点                 |          局限性          |
+| :----------------------------------: | :----------------------: |
+|       为特定类型提供定制的实现       |    可能导致代码碎片化    |
+| 更高的执行效率（针对特定类型的优化） |     增加了代码复杂性     |
+|           提高代码的灵活性           | 过度使用可能导致难以维护 |
+
+### SFINAE
+
+## 模板元编程
+
+## C++17 新特性
