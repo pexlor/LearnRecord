@@ -229,4 +229,6 @@ void printValue<bool>(const bool& value) {
 
 ## 模板元编程
 
+## CRTP
+
 ## C++17 新特性
