@@ -2,8 +2,6 @@
 
 # 几种重要的关键字
 ## const
-
-
 ## volatile
 ## restrict
 ## mutable
@@ -14,6 +12,8 @@
 ## decltype
 ## extern
 ## define家族
+## extern “C”
+## delect
 
 # 命名空间
 在C/C++中，变量、函数和类都是大量存在的，这些变量、函数和类的名称都将作用于全局作用域中，可能会导致很多命名冲突。  
@@ -101,13 +101,10 @@ return_type function_name( parameter list )
    body of the function
 }
 ```
-
 ## 函数参数
 ### 传递参数的方式
 1、值传递  
-
 2、引用传递  
-
 3、指针传递
 ### 缺省函数参数 
 > 缺省参数是指在声明或定义函数时，为函数的参数指定一个默认值。在调用该函数时，如果没有指定实参则采用该默认值，否则使用指定的实参。  
@@ -179,28 +176,115 @@ inline void print(char *s)
 1. 内联函数不能包括复杂的控制语句，如循环语句和switch语句；
 2. 内联函数不能包括复杂的控制语句，如循环语句和switch语句；
 3. 只将规模很小（一般5个语句一下）而使用频繁的函数声明为内联函数。在函数规模很小的情况下，函数调用的时间开销可能相当于甚至超过执行函数本身的时间，把它定义为内联函数，可大大减少程序运行时间。
-
 # 指针
+> 指针是一个变量，其值为另一个变量的地址，即，内存位置的直接地址。
 ## 传统指针
+声明：
+```
+type *var-name;
+int    *ip;    /* 一个整型的指针 */
+double *dp;    /* 一个 double 型的指针 */
+float  *fp;    /* 一个浮点型的指针 */
+char   *ch;    /* 一个字符型的指针 */
+```
+指针数组(指针的数组);
+数组指针（数组的指针）;
+char * 和 char[];
+const int * p;
+int * const p;
+const int * const p;
+void*是不能隐式转换成其他类型的指针的;
+## 指针空值
+NULL和nullptr  
+1. NULL:
+在c++中的处理为：
+```
+#ifdef __cplusplus
+#define NULL 0
+#else
+#define NULL ((void *)0)
+#endif
+```  
+可见，在C++中，NULL实际上是0  
+注意：用NULL代替0表示空指针在函数重载时会出现问题
+```
+#include <iostream>
+using namespace std;
+ 
+void func(void* i)
+{
+	cout << "func1" << endl;
+}
+ 
+void func(int i)
+{
+	cout << "func2" << endl;
+}
+ 
+void main(int argc,char* argv[])
+{
+	func(NULL);
+	func(nullptr);
+	getchar();
+}
+```
+2. nullptr
+为解决NULL代指空指针存在的二义性问题，在C++11版本(2011年发布)中特意引入了nullptr这一新的关键字来代指空指针
+
+## 野指针和空悬指针
+野指针：野指针是指尚未初始化的指针，既不指向合法的内存空间,也没有使用 NULL/nullptr 初始化指针  
+空悬指针：悬空指针是指 指针指向的内存空间已被释放或不再有效
 ## 智能指针
-### 最常用的三种指针
-### boost库八大指针
-
+### 最常用的智能指针
+1. shared_ptr
+> 共享式指针，同一时刻可以有多个指针指向同一个对象
+2. weak_ptr
+3. unique_ptr
+4. auto_ptr(已弃用)
+### boost库中的指针
+1. boost::scoped_ptr
+2. boost::scoped_array
+3. boost::shared_ptr
+4. boost::shared_array
+5. boost::weak_ptr
+6. boost::intrusive_ptr
+7. boost::ptr_vector
 # 引用
-
-
+引用变量是一个别名，也就是说，它是某个已存在变量的另一个名字。一旦把引用初始化为某个变量，就可以使用该引用名称或变量名称来指向变量。
+说白了就是一个const指针
+```
+int main() {
+   int a = 10;
+   int *b=&a;
+   int * &c = b;
+   printf("%p\n",b);
+   printf("%p\n",c);
+   printf("%p\n",&c);  
+}
+```
+· 不存在空引用。引用必须连接到一块合法的内存
+· 一旦引用被初始化为一个对象，就不能被指向到另一个对象。指针可以在任何时候指向到另一个对象
+· 引用必须在创建时被初始化。指针可以在任何时间被初始化
 
 # 类
 ## 虚函数与纯虚函数
+1. 虚函数
+    虚函数是在基类中使用virtual关键字声明的函数，可以在派生类中被重写。可以用来实现多态。其核心目的是通过基类访问派生类定义的函数。
+
+2. 纯虚函数
+   
+3. 虚函数表
+
+4. 虚函数调用原理
+
 ## 构造函数
 ## 析构函数
-## this指针
+## this指针与enable_shared_from_this
 ## 拷贝赋值函数
 ## 静态成员变量
 ## 静态类
 ## 深拷贝与浅拷贝
 ## 友元
-### 多态的实现
 ## 重写
 ## 重载
 ## 运算符重载
@@ -209,21 +293,19 @@ inline void print(char *s)
 ## 初始化列表
 ## 内部类
 
+# 结构体
+在c++里结构体与类的区别不大，唯一区别就是结构体的默认权限是public  
+# 接口
 # 继承
 # 多态
 # 异常
-# 结构体
-# 接口
 # 类型转换
-
 # c++内存管理
-
 # STL
 ## 算法
 ## 容器
 ## 迭代器
 ## 空间配置器
-
 # c++ 11
 ## 右值引用与移动语义
 ## lambad表达式
