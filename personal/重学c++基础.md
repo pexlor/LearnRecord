@@ -696,12 +696,50 @@ static_cast、dynamic_cast、const_cast、reinterpret_cast - 类型转换运算�
 
 静态类的成员不能有protected或protected internal访问保护修饰符。静态类不能包含构造函数，但仍可声明静态构造函数以分配初始值或设置某个静态状态。
 ## 内部类
+### 概念
+如果一个类定义在另一个类的内部，这个内部类就叫做内部类。
+注意此时这个内部类是一个独立的类，它不属于外部类，更不能通过外部类的对象去调用内部类。外部类对内部类没有任何优越的访问权限。  
+也就是说：内部类相当于外部类的友元类。注意友元类的定义，内部类中的方法可以通过外部类的对象参数来访问外部类中的所有成员(包括private)。但是外部类不是内部类的友元
+```
+#include <iostream>
+using namespace std;
+class A {
+    private: 
+        static int i;
+        class B {}; // 这里B是private的，在A类外就不能使用A::B来定义内部类的对象。
+};
+int main(int argc, char* argv[])
+{
+   A::B *b = new A::B();
+   return 0;
+}
+```
+### 特性
+• 内部类是外部类的友元类，但是外部类不是内部类的友元。（即内部类可以访问外部类）。
+• 内部类定义在外部类的public、protected、private（）都是可以的；但是内部类受这些限制符的限定。
+• 注意内部类可以直接访问外部类种的static成员，不需要外部类的对象/类名。
+## 匿名类
+在 C++ 中，匿名类是一种没有命名的局部类，它与匿名类似，但在 C++ 中有一些区别。匿名类是在声明的同时进行实例化的，它可以作为对象在堆栈上分配并使用，也可以作为类成员使用。
+```
+//可以使用lambda表达式来实现类似匿名类的功能
+#include <iostream>
 
+int main() {
+    auto obj = []() {
+        std::cout << "Hello, World!" << std::endl;
+    };
+    obj();
+    return 0;
+}
+```
 ## 抽象类
 抽象类是含有至少一个纯虚函数的类，不能被实例化，只能被派生类继承。
-## 虚基类
-虚基类用于解决多重继承中的二义性问题（包括菱形继承）。在多重继承中，虚基类确保派生类继承的基类在内存中只有一份拷贝。
-
+```
+class AbstractClass {
+public:
+    virtual void pureVirtualFunction() = 0; // 纯虚函数
+};
+```
 # 结构体
 在c++里结构体与类的区别不大，唯一区别就是结构体的默认权限是public 
 ## 结构体对齐
@@ -710,9 +748,156 @@ static_cast、dynamic_cast、const_cast、reinterpret_cast - 类型转换运算�
 在C++中，接口通常使用抽象类来实现。抽象类是含有至少一个纯虚函数的类。纯虚函数是用 = 0 来标记的虚函数
 
 # 继承
-## 继承权限
+## 概念
+继承(inheritance)机制是面向对象程序设计使代码可以复用的最重要的手段，它允许程序员在保持原有类特性的基础上进行扩展，增加功能，这样产生新的类，称派生类。
+## 继承定义
+## 继承关系和访问限定符
+## 继承的内存问题
 ## 菱形继承问题
+### 二义性
+在面向对象中，常常存在这样的事情，一个派生类它有两个或两个以上的基类，这种行为称作多重继承
+如果在多重继承中Class A 和Class B存在同名数据成员，则对Class C而言这个同名的数据成员容易产生二义性问题。这里的二义性是指无法直接通过变量名进行读取，需要通过域(::)成员运算符进行区分
+```
+//基类A
+class A 
+{
+public:
+    A() :m_data(1), m_a(1)
+    {
+    }
+    ~A(){}
 
+public:
+    int m_data;      //同名变量，类型无要求
+    int m_a;
+};
+//基类B
+class B
+{
+public:
+    B() :m_data(1), m_b(1)
+    {
+    }
+    ~B(){}
+
+public:
+    int m_data;      //同名变量，类型无要求
+    int m_b;
+};
+
+class C  : public A, public B
+{
+
+};
+
+int _tmain(int argc,  _TCHAR* argv[])
+{
+    C Data;
+   //Data.m_data  = 10;   //错误, 提示指向不明确
+   
+   //通过域成员运算符才可以访问，使用不方便
+    Data.A::m_data = 10.1; 
+    Data.B::m_data = 20;
+    
+    std::cout << Data.A::m_data << "   " << Data.B::m_data << std::endl;
+
+    return 0;
+}
+
+```
+### 什么是菱形继承
+在多重继承中，存在一个很特殊的继承方式，即菱形继承。比如一个类C通过继承类A和类B，但是类A和类B又同时继承于公共基类N
+这种继承方式也存在数据的二义性，这里的二义性是由于他们间接都有相同的基类导致的。 这种菱形继承除了带来二义性之外，还会浪费内存空间。
+```
+//公共基类
+class N
+{
+public:
+    N(int data1, int data2, int data3) : 
+        m_data1(data1), 
+        m_data2(data2), 
+        m_data3(data3)
+    {
+        std::cout << "call common constructor" << std::endl;
+    }
+    virtual ~N(){}
+
+    void    display()
+    {
+        std::cout << m_data1 << std::endl;
+    }
+
+public :
+    int     m_data1;
+    int     m_data2;
+    int     m_data3;
+};
+
+
+class A : /*virtual*/ public N
+{
+public:
+    A() :N(11, 12, 13), m_a(1)
+    {
+        std::cout << "call class A constructor" << std::endl;
+    }
+    ~A(){}
+
+public :
+    int m_a;
+};
+
+class B :  /*virtual*/ public N
+{
+public:
+    B() :N(21, 22, 23),m_b(2)
+    {
+        std::cout << "call class B constructor" << std::endl;
+    }
+    ~B(){}
+
+public :
+    int m_b;
+};
+
+
+class C : public A ,  public B
+{
+public:
+    //负责对基类的初始化
+    C() : A(), B(),
+        m_c(3)
+    {
+        std::cout << "call class C constructor" << std::endl;
+    }
+    void show()
+    {
+        std::cout << "m_c=" << m_c << std::endl;
+    }
+
+ public :
+    int m_c;
+};
+
+```
+//
+在类C中存在 两份的基类N，分别存在类A和类B中，如果数据多则严重浪费空间，也不利于维护,引用基类N中的数据还需要通过域运算符进行区分
+### 菱形继承的解决
+为了解决上述菱形继承带来的问题，C++中引入了虚基类，其作用是**在间接继承共同基类时只保留一份基类成员**
+```
+class A//A 基类
+{ ... };
+
+//类B是类A的公用派生类, 类A是类B的虚基类
+class B : virtual public A
+{  ... };
+
+//类C是类A的公用派生类, 类A是类C的虚基类
+class C : virtual public A
+{  ... };
+
+```
+虚基类并不是在声明基类时声明的，而是在声明派生类时，指定继承方式声明的
 # 多态
 ## 静态多态
 ## 动态多态
