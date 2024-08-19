@@ -5,31 +5,37 @@
 #include <string> 
 using namespace std;
 
+class a{
+public:
+    int a;
+    virtual void Test();
+};
+
+class f : public a{
+    bool f;
+    bool c;
+    bool d;
+    bool g;
+    bool h;
+};
+
+class b : virtual public a{
+ 
+};
+
+class c : virtual public a{
+
+};
+
+class d : public b, public c{
+
+};
+
 int main(){
-    string str;
-    cin >> str;
-    int i=0;
-    for(;;){
-        bool has = false;
-        for(int j=0;j<str.size()-1;){
-           if(str[j] == '0' && str[j+1] == '1'){
-                cout << str << endl;
-               str[j] = '1';
-               str[j+1] = '0';
-               cout << str << endl;
-               j = j+2;
-               //cout << j << endl;
-               has = true;
-           }else{
-               ++j;
-           }
-        }
-        if(!has){
-            cout << i;
-            break;
-        }
-        //cout << str << endl;
-        ++i;
-    }
+    cout << sizeof(a) << endl;
+    cout << sizeof(b) << endl;
+    cout << sizeof(c) << endl;
+    cout << sizeof(d) << endl;
+    cout << sizeof(f) << endl;
     return 0;
 }
