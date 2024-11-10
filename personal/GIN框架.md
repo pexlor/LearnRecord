@@ -73,6 +73,7 @@ r.GET("/user", func(c *gin.Context) {
 ### 表单(form)参数
 > 表单传输为post请求
 > 表单参数可以通过PostForm()方法获取
+> 示例：建议使用HTTP接口在线测试模拟POST请求
 
 ```
 r.POST("/form", func(c *gin.Context) {
@@ -82,6 +83,116 @@ r.POST("/form", func(c *gin.Context) {
     c.String(http.StatusOK, types+username+password)
 })
 ```
+
+### 上传单个文件
+> multipart/form-data格式用于文件上传
+```
+func main() {
+    r := gin.Default()
+    //限制上传最大尺寸
+    r.MaxMultipartMemory = 8 << 20
+    r.POST("/upload", func(c *gin.Context) {
+        file, err := c.FormFile("file")
+        if err != nil {
+            c.String(500, "上传图片出错")
+        }
+        // c.JSON(200, gin.H{"message": file.Header.Context})
+        c.SaveUploadedFile(file, file.Filename)
+        c.String(http.StatusOK, file.Filename)
+    })
+    r.Run()
+}
+```
+### 上传多个文件
+```
+func main() {
+   // 1.创建路由
+   // 默认使用了2个中间件Logger(), Recovery()
+   r := gin.Default()
+   // 限制表单上传大小 8MB，默认为32MB
+   r.MaxMultipartMemory = 8 << 20
+   r.POST("/upload", func(c *gin.Context) {
+      form, err := c.MultipartForm()
+      if err != nil {
+         c.String(http.StatusBadRequest, fmt.Sprintf("get err %s", err.Error()))
+      }
+      // 获取所有图片
+      files := form.File["files"]
+      // 遍历所有图片
+      for _, file := range files {
+         // 逐个存
+         if err := c.SaveUploadedFile(file, file.Filename); err != nil {
+            c.String(http.StatusBadRequest, fmt.Sprintf("upload err %s", err.Error()))
+            return
+         }
+      }
+      c.String(200, fmt.Sprintf("upload ok %d files", len(files)))
+   })
+   //默认端口号是8080
+   r.Run(":8000")
+}
+```
+### 路由组
+> routes group是为了管理一些相同的URL
+#### 简单路由组
+```
+func main() {
+    router := gin.Default()
+    //简单的路由组: v1
+    v1 := router.Group("/v1")
+    {
+        v1.POST("/login", loginEndpoint)
+        v1.POST("/submit", submitEndpoint)
+        v1.POST("/read", readEndpoint)
+    }
+    //简单的路由组: v2
+    v2 := router.Group("/v2")
+    {
+        v2.POST("/login", loginEndpoint)
+        v2.POST("/submit", submitEndpoint)
+        v2.POST("/read", readEndpoint)
+    }
+    router.Run(":8080")
+}
+```
+#### 路由文件分组
+> MVC架构路由分层
+
+```
+// 新建adminRoutes.go
+package routes
+import (
+    "net/http"
+    "github.com/gin-gonic/gin"
+)
+funcAdminRoutesInit(router *gin.Engine) {
+    adminRouter := router.Group("/admin")
+    {
+        adminRouter.GET("/user", func(c *gin.Context) {
+            c.String(http.StatusOK, "用户")
+        })
+        adminRouter.GET("/news", func(c *gin.Context) {
+            c.String(http.StatusOK, "news")
+        })
+    }
+}
+```
+### 路由原理
+>httproter会将所有路由规则构造一颗前缀树
+
+## 数据解析和绑定
+### 通过结构体获取参数
+>可以基于请求的Content-Type识别请求数据类型并利用反射机制自动提取请求中QueryString、form表单、JSON、XML等
+参数到结构体中
+
+```
+//注意首字母大写
+type Userinfo struct {
+    Username string `form:"username" json:"user"`
+    Password string `form:"password" json:"password"`
+}
+```
+
 
 ### 
 # 源码学习
