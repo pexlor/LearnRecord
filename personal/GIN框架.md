@@ -178,23 +178,243 @@ funcAdminRoutesInit(router *gin.Engine) {
 }
 ```
 ### 路由原理
->httproter会将所有路由规则构造一颗前缀树
+> httproter会将所有路由规则构造一颗前缀树
 
 ## 数据解析和绑定
-### 通过结构体获取参数
->可以基于请求的Content-Type识别请求数据类型并利用反射机制自动提取请求中QueryString、form表单、JSON、XML等
+### ShouldBind()
+> 可以基于请求的Content-Type识别请求数据类型并利用反射机制自动提取请求中QueryString、form表单、JSON、XML等
 参数到结构体中
+
+> ShouldBind()强大的功能，它能够基于请求自动提取JSON、form表单和QueryString 类型的数据
 
 ```
 //注意首字母大写
 type Userinfo struct {
-    Username string `form:"username" json:"user"`
-    Password string `form:"password" json:"password"`
+    // binding:"required"修饰的字段，若接收为空值，则报错，是必须字段
+    User    string `form:"username" json:"user" uri:"user" xml:"user" binding:"required"`
+    Pssword string `form:"password" json:"password" uri:"password" xml:"password" binding:"required"`
 }
 ```
 
+### Json数据解析和绑定
+> c.ShouldBindJSON(&json)
+```
+func main() {
+   // 1.创建路由
+   // 默认使用了2个中间件Logger(), Recovery()
+   r := gin.Default()
+   // JSON绑定
+   r.POST("loginJSON", func(c *gin.Context) {
+      // 声明接收的变量
+      var json Login
+      // 将request的body中的数据，自动按照json格式解析到结构体
+      if err := c.ShouldBindJSON(&json); err != nil {
+         // 返回错误信息
+         // gin.H封装了生成json数据的工具
+         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+         return
+      }
+      // 判断用户名密码是否正确
+      if json.User != "root" || json.Pssword != "admin" {
+         c.JSON(http.StatusBadRequest, gin.H{"status": "304"})
+         return
+      }
+      c.JSON(http.StatusOK, gin.H{"status": "200"})
+   })
+   r.Run(":8000")
+}
+```
 
-### 
+### 表单数据解析和绑定
+> c.Bind(&form)
+
+```
+func main() {
+    // 1.创建路由
+    // 默认使用了2个中间件Logger(), Recovery()
+    r := gin.Default()
+    // JSON绑定
+    r.POST("/loginForm", func(c *gin.Context) {
+        // 声明接收的变量
+        var form Login
+        // Bind()默认解析并绑定form格式
+        // 根据请求头中content-type自动推断
+        if err := c.Bind(&form); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+        // 判断用户名密码是否正确
+        if form.User != "root" || form.Pssword != "admin" {
+            c.JSON(http.StatusBadRequest, gin.H{"status": "304"})
+            return
+        }
+        c.JSON(http.StatusOK, gin.H{"status": "200"})
+    })
+    r.Run(":8000")
+}
+```
+
+### URI数据解析和绑定
+> c.ShouldBindUri(&login)
+
+```
+func main() {
+    // 1.创建路由
+    // 默认使用了2个中间件Logger(), Recovery()
+    r := gin.Default()
+    // JSON绑定
+    r.GET("/:user/:password", func(c *gin.Context) {
+        // 声明接收的变量
+        var login Login
+        // Bind()默认解析并绑定form格式
+        // 根据请求头中content-type自动推断
+        if err := c.ShouldBindUri(&login); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+        // 判断用户名密码是否正确
+        if login.User != "root" || login.Pssword != "admin" {
+            c.JSON(http.StatusBadRequest, gin.H{"status": "304"})
+            return
+        }
+        c.JSON(http.StatusOK, gin.H{"status": "200"})
+    })
+    r.Run(":8000")
+}
+```
+### URL参数解析和绑定
+> ShouldBindQuery()
+
+```
+r.GET("/user", func(c *gin.Context) {
+    var user User
+    if err := c.ShouldBindQuery(&user); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"message": "User info is valid", "user": user})
+})
+
+```
+
+## gin渲染
+### 各种数据格式响应
+1. json
+```
+funcmain() {
+    r := gin.Default()
+    // gin.H是map[string]interface{}的缩写
+    r.GET("/someJSON", func(c *gin.Context) {
+        //方式一：自己拼接JSON
+        c.JSON(http.StatusOK, gin.H{"message": "Helloworld!"})
+    })
+    r.GET("/moreJSON", func(c *gin.Context) {
+        //方法二：使用结构体
+        varmsg struct {
+            Name string `json:"user"`
+            Message string
+            Age int
+        }
+        msg.Name = "Pexlor"
+        msg.Message = "Helloworld!"
+        msg.Age =18
+        c.JSON(http.StatusOK,msg)
+    })
+    r.Run(":8080")
+}
+```
+2. JSONP
+> 
+```
+r.GET("/JSONP", func(c *gin.Context) {
+    data :=map[string]interface{}{
+        "foo": "bar",
+    }
+    // /JSONP?callback=x
+    //将输出：x({\"foo\":\"bar\"})
+    c.JSONP(http.StatusOK, data)
+})
+
+```
+3. XML
+```
+// gin.H是map[string]interface{}的缩写
+r.GET("/someXML", func(c *gin.Context) {
+    //方式一：自己拼接JSON
+    c.XML(http.StatusOK, gin.H{"message": "Helloworld!"})
+})
+
+r.GET("/moreXML", func(c *gin.Context) {
+    //方法二：使用结构体
+    typeMessageRecord struct {
+        Name string
+        Message string
+        Age int
+    }
+    varmsgMessageRecord
+    msg.Name = "Pelxor"
+    msg.Message = "Helloworld!"
+    msg.Age =18
+    c.XML(http.StatusOK,msg)
+})
+```
+
+4. HTML(渲染模版)
+```
+router.GET("/", func(c *gin.Context) {
+    c.HTML(http.StatusOK, "default/index.html",map[string]interface{}{
+        "title": "前台首页"
+    })
+})
+```
+5. ProtoBuf
+```
+r.GET("/someProtoBuf", func(c *gin.Context) {
+    reps := []int64{int64(1), int64(2)}
+    // 定义数据
+    label := "label"
+    // 传protobuf格式数据
+    data := &protoexample.Test{
+        Label: &label,
+        Reps:  reps,
+    }
+    c.ProtoBuf(200, data)
+})
+```
+
+6. String
+```
+r.GET("/news", func(c *gin.Context) {
+    aid := c.Query("aid")
+    c.String(200, "aid=%s", aid)
+})
+```
+
+### HTML模版渲染
+#### 全部模板放在一个目录里面的配置方法
+#### 模板放在不同目录里面的配置方法
+#### gin模板基本语法
+#### 嵌套template
+#### 静态文件服务
+
+### 重定向
+```
+func main() {
+    r := gin.Default()
+    r.GET("/index", func(c *gin.Context) {
+        c.Redirect(http.StatusMovedPermanently, "http://www.5lmh.com")
+    })
+    r.Run()
+}
+```
+### 同步异步
+
+## gin中间件
+
+## 会话控制
+
+## 参数验证
+
 # 源码学习
 
 # 面试题
