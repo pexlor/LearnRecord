@@ -391,11 +391,135 @@ r.GET("/news", func(c *gin.Context) {
 ```
 
 ### HTML模版渲染
+> gin支持加载HTML模板, 然后根据模板参数进行配置并返回相应的数据，本质上就是字符串替换
+> 先使用 LoadHTMLGlob() 或者 LoadHTMLFiles() 方法加载模板
+
 #### 全部模板放在一个目录里面的配置方法
+
+![目录结构](image/GIN框架/01.png)
+
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{.title}}</title>
+</head>
+    <body>
+        fgkjdskjdsh{{.ce}}
+    </body>
+</html>
+```
+
+```
+func main() {
+    r := gin.Default()
+    r.LoadHTMLGlob("tem/*") //要提前加载
+    r.GET("/index", func(c *gin.Context) {
+        c.HTML(http.StatusOK, "index.html", gin.H{"title": "我是测试", "ce": "123456"})
+    })
+    r.Run()
+}
+```
+
 #### 模板放在不同目录里面的配置方法
-#### gin模板基本语法
-#### 嵌套template
+> 要给每个模版定义名字 {{ define "admin/index.html" }}
+
+![目录结构](image/GIN框架/02.png)
+
+```
+{{ define "admin/index.html" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{.title}}</title>
+</head>
+    <body>
+        admin index{{.ce}}
+    </body>
+</html>
+{{end}}
+```
+
+```
+func main() {
+
+	//创建默认路由引擎
+	r := gin.Default()
+
+	//配置模版的文件
+	r.LoadHTMLGlob("tem/**/*")
+
+    r.GET("/adminhtml", func(c *gin.Context) {
+            c.HTML(http.StatusOK, "admin/index.html", gin.H{
+                "title": "admin测试",
+            })
+        })
+
+	r.GET("/userhtml", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "user/index.html", gin.H{
+			"title": "user测试",
+		})
+	})
+}
+```
+
+#### 自定义模版函数
+```
+func UnixToTime(timestamp int) string {
+	fmt.Println(timestamp)
+	t := time.Unix(int64(timestamp), 0)
+	return t.Format("2006-01-02 15:04:05")
+}
+
+func main() {
+
+	//创建默认路由引擎
+	r := gin.Default()
+
+	//注册全局模板函数注意顺序，注册模板函数需要在加载模板上面
+	r.SetFuncMap(template.FuncMap{
+		"UnixToTime": UnixToTime,
+	})
+
+    //配置模版的文件
+	r.LoadHTMLGlob("tem/**/*")
+
+	r.GET("/adminhtml", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "admin/index.html", gin.H{
+			"title": "admin测试",
+		})
+	})
+
+	r.Run(":8000")
+}
+```
+
+在模版中使用
+```
+{{.now| formatDate}}
+或者
+{{formatDate .now }}
+```
+
 #### 静态文件服务
+> 当我们渲染的HTML文件中引用了静态文件时,我们需要配置静态web服务
+
+```
+func main() {
+    r := gin.Default()
+    r.Static("/static", "./static") //前面的/static 表示路由后面的./static 表示路径
+    r.LoadHTMLGlob("templates/**/*")
+    // ...
+    r.Run(":8080")
+}
+<link rel="stylesheet" href="/static/css/base.css" />
+```
 
 ### 重定向
 ```
@@ -407,9 +531,44 @@ func main() {
     r.Run()
 }
 ```
+
 ### 同步异步
+> goroutine机制可以方便地实现异步处理
+> 另外，在启动新的goroutine时，不应该使用原始上下文，必须使用它的只读副本
+
+```
+func main() {
+    // 1.创建路由
+    // 默认使用了2个中间件Logger(), Recovery()
+    r := gin.Default()
+    // 1.异步
+    r.GET("/long_async", func(c *gin.Context) {
+        // 需要搞一个副本
+        copyContext := c.Copy()
+        // 异步处理
+        go func() {
+            time.Sleep(3 * time.Second)
+            log.Println("异步执行：" + copyContext.Request.URL.Path)
+        }()
+    })
+
+    // 2.同步
+    r.GET("/long_sync", func(c *gin.Context) {
+        time.Sleep(3 * time.Second)
+        log.Println("同步执行：" + c.Request.URL.Path)
+    })
+
+    r.Run(":8000")
+```
 
 ## gin中间件
+Gin 框架允许开发者在处理请求的过程中，加入用户自己的钩子（Hook）函数。这个钩子函数就叫中间件，中间件适合处理一些公共的业务逻辑，比如登录认证、权限校验、数据分页、记录日志、耗时统计等
+
+> 通俗的讲：中间件就是匹配路由前和匹配路由完成后执行的一系列操作
+
+### 全局中间件
+### 局部中间件
+### Next()方法
 
 ## 会话控制
 
