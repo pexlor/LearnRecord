@@ -566,13 +566,399 @@ Gin 框架允许开发者在处理请求的过程中，加入用户自己的钩�
 
 > 通俗的讲：中间件就是匹配路由前和匹配路由完成后执行的一系列操作
 
-### 全局中间件
+
 ### 局部中间件
+```
+// 定义中间
+func MiddleWare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t := time.Now()
+		fmt.Println("中间件开始执行了,开始时间为：", t)
+	}
+}
+
+func main() {
+    //创建默认路由引擎
+	r := gin.Default()
+
+	//注册全局模板函数注意顺序，注册模板函数需要在加载模板上面
+	r.SetFuncMap(template.FuncMap{
+		"UnixToTime": UnixToTime,
+	})
+
+	//配置模版的文件
+	r.LoadHTMLGlob("tem/**/*")
+
+    r.GET("/adminhtml", MiddleWare(), func(c *gin.Context) {
+		c.HTML(http.StatusOK, "admin/index.html", gin.H{
+			"title": "admin测试",
+		})
+	})
+}
+```
+
+### 全局中间件
+> Use(middleware ...HandlerFunc)方法
+
+```
+// 定义中间
+func MiddleWare() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        t := time.Now()
+        fmt.Println("中间件开始执行了,开始时间为:",t)
+    }
+}
+
+func main() {
+    // 1.创建路由
+    // 默认使用了2个中间件Logger(), Recovery()
+    r := gin.Default()
+    // 注册中间件
+    r.Use(MiddleWare())
+    // {}为了代码规范
+    {
+        r.GET("/ce", func(c *gin.Context) {
+            // 取值
+            req, _ := c.Get("request")
+            fmt.Println("request:", req)
+            // 页面接收
+            c.JSON(200, gin.H{"request": req})
+        })
+
+    }
+    r.Run()
+}
+```
 ### Next()方法
+> ctx.Next()调用该请求的剩余处理程序,就是会调用剩下的注册函数，等剩余函数执行完后再接着执行next()下方的内容
 
+```
+// 定义中间
+func MiddleWare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t := time.Now()
+		fmt.Println("中间件开始执行了,开始时间为：", t)
+        c.Next()
+		t = time.Now()
+		fmt.Println("中间件开始执行了,结束时间为：", t)
+	}
+}
+
+func main() {
+    //创建默认路由引擎
+	r := gin.Default()
+
+	//注册全局模板函数注意顺序，注册模板函数需要在加载模板上面
+	r.SetFuncMap(template.FuncMap{
+		"UnixToTime": UnixToTime,
+	})
+
+	//配置模版的文件
+	r.LoadHTMLGlob("tem/**/*")
+
+    r.GET("/adminhtml", MiddleWare(), func(c *gin.Context) {
+		c.HTML(http.StatusOK, "admin/index.html", gin.H{
+			"title": "admin测试",
+		})
+	})
+}
+```
+
+### Abort()方法
+> c.Abort()表示终止调用该请求的剩余处理程序
+
+```
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"text/template"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Article struct {
+	Title string `json:"title"`
+	Desc  string `json:"desc"`
+}
+
+type Userinfo struct {
+	Username string `form:"username" json:"user"`
+	Password string `form:"password" json:"password"`
+}
+
+func UnixToTime(timestamp int) string {
+	fmt.Println(timestamp)
+	t := time.Unix(int64(timestamp), 0)
+	return t.Format("2006-01-02 15:04:05")
+}
+
+// 定义中间
+func MiddleWareOne() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t := time.Now()
+		fmt.Println("中间件1开始执行了,开始时间为：", t)
+		c.Next()
+		t = time.Now()
+		fmt.Println("中间件1开始执行了,结束时间为：", t)
+	}
+}
+
+// 定义中间
+func MiddleWareTwo() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t := time.Now()
+		fmt.Println("中间件2开始执行了,开始时间为：", t)
+		c.Abort()
+		t = time.Now()
+		fmt.Println("中间件2开始执行了,结束时间为：", t)
+	}
+}
+
+func main() {
+
+	//创建默认路由引擎
+	r := gin.Default()
+
+	//注册全局模板函数注意顺序，注册模板函数需要在加载模板上面
+	r.SetFuncMap(template.FuncMap{
+		"UnixToTime": UnixToTime,
+	})
+
+	//配置模版的文件
+	r.LoadHTMLGlob("tem/**/*")
+
+	r.GET("/adminhtml", MiddleWareOne(), MiddleWareTwo(), func(c *gin.Context) {
+		c.HTML(http.StatusOK, "admin/index.html", gin.H{
+			"title": "admin测试",
+		})
+	})
+
+
+	r.Run(":8000")
+}
+
+```
+这里最后的控制器函数没有执行，没有返回数据
+
+### 路由分组配置中间件
+两种写法
+
+写法一:
+```
+shopGroup := r.Group("/shop", MiddleWare())
+{
+    shopGroup.GET("/index", func(c *gin.Context) {...})
+    ...
+}
+
+```
+
+写法二:
+```
+shopGroup := r.Group("/shop")
+shopGroup.Use(MiddleWare())
+{
+    shopGroup.GET("/index", func(c *gin.Context) {...})
+    ...
+}
+```
+
+### 中间件和对应控制器之间共享数据
+> 设置值 ctx.Set("username", "张三")
+> 获取值 username, _ := ctx.Get("username")
+
+中间件设置值
+```
+func InitAdminMiddleware(ctx *gin.Context) {
+    fmt.Println("路由分组中间件")
+    //可以通过ctx.Set在请求上下文中设置值，后续的处理函数能够取到该值
+    ctx.Set("username", "张三")
+    // 调用该请求的剩余处理程序
+    ctx.Next()
+}
+```
+
+控制器获取值
+```
+func (c UserController) Index(ctx *gin.Context) {
+    username, _ := ctx.Get("username")
+    fmt.Println(username)
+    ctx.String(http.StatusOK, "这是用户首页 111")
+}
+```
+### 中间件注意事项
+
+1. gin默认中间件
+    gin.Default()默认使用了 Logger 和 Recovery 中间件，其中：
+      
+    • Logger中间件将日志写入gin.DefaultWriter，即使配置了GIN_MODE=release。  
+    • Recovery 中间件会recover任何panic。如果有panic的话，会写入500响应码。  
+      
+    如果不想使用上面两个默认的中间件，可以使用gin.New()新建一个没有任何默认中间件的
+    路由。
+
+2. gin中间件中使用goroutine
+    当在中间件或handler中启动新的goroutine时，不能使用原始的上下文（c*gin.Context），必须使用其只读副本（c.Copy()）
+
+```
+r.GET("/", func(c *gin.Context) {
+    cCp := c.Copy()
+    go func() {
+        // simulate a long task with time.Sleep(). 5 seconds
+        time.Sleep(5 * time.Second)
+        // 这里使用你创建的副本
+        fmt.Println("Done! in path " + cCp.Request.URL.Path)
+    }()
+    c.String(200, "首页")
+}
+```
 ## 会话控制
+### Cookie
+#### 介绍
+HTTP是无状态协议，服务器不能记录浏览器的访问状态，也就是说服务器不能区分两次请求是否由同一个客户端发出  
+Cookie就是解决HTTP协议无状态的方案之一，中文是小甜饼的意思  
+Cookie实际上就是服务器保存在浏览器上的一段信息。浏览器有了Cookie之后，每次向服务器发送请求时都会同时将该信息发送给服务器，服务器收到请求后，就可以根据该信息处理请求  
+Cookie由服务器创建，并发送给浏览器，最终由浏览器保存  
+测试服务端发送cookie给客户端，客户端请求时携带cookie  
 
-## 参数验证
+#### 使用
+> 设置cookie  c.SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool)
+    第一个参数 key  
+    第二个参数 value  
+    第三个参数 maxAge ,过期时间.如果只想设置Cookie的保存路径而不想设置存活时间，可以在第三个参数中传递nil  
+    第四个参数 path ,cookie的路径  
+    第五个参数 domain ,cookie的路径Domain作用域 本地调试配置成 localhost, 正式上线配置成域名  
+    第六个参数 secure ，当 secure 值为 true 时，cookie 在 HTTP 中是无效，在 HTTPS 中才有效  
+    第七个参数 httpOnly，是微软对COOKIE做的扩展。如果在COOKIE中设置了“httpOnly”属性，则通过程序（JS脚本、applet等）将无法读取到COOKIE信息，防止XSS攻击产生  
+
+> 获取cookie  cookie, err := c.Cookie("name")
+```
+func main() {
+    r := gin.Default()
+    r.SetFuncMap(template.FuncMap{
+        "unixToDate": models.UnixToDate,
+    })
+    r.GET("/", func(c *gin.Context) {
+        c.SetCookie("usrename", "张三", 3600, "/", "localhost", false, true)
+        c.String(200, "首页")
+    })
+
+    r.GET("/user", func(c *gin.Context) {
+        username, _ := c.Cookie("usrename")
+        c.String(200, "用户-"+username)
+    })
+    r.Run(":8080")
+}
+```
+#### 多个二级域名共享cookie
+1. 分别把a.itying.com 和 b.itying.com 解析到我们的服务器
+2. 我们想的是用户在a.itying.com 中设置Cookie 信息后在b.itying.com 中获取刚才设置的cookie，也就是实现多个二级域名共享cookie
+
+```
+c.SetCookie("usrename", "张三", 3600, "/", ".itying.com", false, true)
+```
+
+#### 缺点
+不安全，明文 
+增加带宽消耗  
+可以被禁用  
+cookie有上限  
+
+### Sessions
+#### 简单介绍
+session 是另一种记录客户状态的机制，不同的是Cookie保存在客户端浏览器中，而session保存在服务器上。
+
+#### 使用
+>  Gin 官方没有给我们提供Session相关的文档，这个时候我们可以使用第三方的Session中间件( gin-contrib/sessions )来实现
+gin-contrib/sessions中间件支持的存储引擎：
+ • cookie
+ • memstore
+ • redis
+ • memcached
+ • mongodb
+
+#### 基于Cookie存储Session
+>安装session包 goget github.com/gin-contrib/sessions
+```
+package main
+import (
+    "github.com/gin-contrib/sessions"
+    "github.com/gin-contrib/sessions/cookie"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+    //创建基于cookie的存储引擎，secret11111参数是用于加密的密钥
+    store := cookie.NewStore([]byte("secret11111"))
+    //设置session中间件，参数mysession，指的是session的名字，也是cookie的名字
+    // store是前面创建的存储引擎，我们可以替换成其他存储引擎
+    r.Use(sessions.Sessions("mysession", store))
+    r.GET("/", func(c *gin.Context) {
+        //初始化session对象
+        session := sessions.Default(c)
+        //设置过期时间
+        session.Options(sessions.Options{
+            MaxAge: 3600 *6, // 6hrs
+        })
+        //设置Session
+        session.Set("username", "张三")
+        session.Save()
+        c.JSON(200, gin.H{"msg": session.Get("username")})
+    })
+
+    r.GET("/user", func(c *gin.Context) {
+        //初始化session对象
+        session := sessions.Default(c)
+        //通过session.Get读取session值
+        username := session.Get("username")
+        c.JSON(200, gin.H{"username": username})
+    })
+    r.Run(":8000")
+}
+```
+#### 基于Redis存储Session
+> 安装redis存储引擎的包 goget github.com/gin-contrib/sessions/redis
+
+```
+package main
+import (
+    "github.com/gin-contrib/sessions"
+    "github.com/gin-contrib/sessions/redis"
+    "github.com/gin-gonic/gin"
+)
+func main() {
+    r := gin.Default()
+    //初始化基于redis的存储引擎
+    //参数说明：
+    //第1个参数-redis最大的空闲连接数
+    //第2个参数-数通信协议tcp或者udp
+    //第3个参数-redis地址,格式，host:port
+    //第4个参数-redis密码
+    //第5个参数-session加密密钥
+    store, _ := redis.NewStore(10, "tcp", "localhost:6379", "", []byte("secret"))
+    r.Use(sessions.Sessions("mysession", store))
+
+    r.GET("/", func(c *gin.Context) {
+        session := sessions.Default(c)
+        session.Set("username", "李四")
+        session.Save()
+        c.JSON(200, gin.H{"username": session.Get("username")})
+    })
+    
+    r.GET("/user", func(c *gin.Context) {
+        // 初始化session 对象
+        session := sessions.Default(c)
+        // 通过session.Get 读取 session 值
+        username := session.Get("username")
+        c.JSON(200, gin.H{"username": username})
+    })
+    r.Run(":8000")
+}
+```
 
 # 源码学习
 
