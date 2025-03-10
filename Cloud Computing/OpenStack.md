@@ -61,8 +61,33 @@ API 库使得其他人可以开发基于 Libvirt 的高级工具，比如 virt-m
 virsh 是经常要用的 KVM 命令行工具
 
 ### CPU和内存虚拟化
+#### CPU虚拟化
+KVM的CPU虚拟化需要CPU硬件支持（通过Intel VT-x/AMD-V实现的）  
+  
+查看CPU是否支持虚拟化指令集，可以使用如下命令：
+```
+egrep -o '(vmx|svm)'  /proc/cpuinfo
+# 正确输出为 vmx 或 svm
+```
+一个 KVM 虚机在宿主机中其实是一个 qemu-kvm 进程，与其他 Linux 进程一样被调度。 
+可以通过在宿主机中使用 top 或 ps 命令查看 qemu-kvm 进程。
+![ps查看qemu-kvm](./images/OpenStack/ps查看qemu-kvm.png)
+
+虚机中的每一个虚拟 vCPU 则对应 qemu-kvm 进程中的一个线程
+![vCPU](./images/OpenStack/vCPU.png)
+宿主机有两个物理 CPU，上面起了两个虚机 VM1 和 VM2。 VM1 有两个 vCPU，VM2 有 4 个 vCPU。可以看到 VM1 和 VM2 分别有两个和 4 个线程在两个物理 CPU 上调度。
+
+> 虚机的 vCPU 总数可以超过物理 CPU 数量，这个叫 CPU overcommit（超配）。 
+> KVM 允许 overcommit
+### 内存虚拟化
+KVM 的内存虚拟化是通过内存页共享实现的。
+![VA]()
+为了在一台机器上运行多个虚拟机，KVM 需要实现 VA（虚拟内存） -> PA（物理内存） -> MA（机器内存）之间的地址转换。  
+虚机 OS 控制虚拟地址到客户内存物理地址的映射 （VA -> PA），但是虚机 OS 不能直接访问实际机器内存，因此 KVM 需要负责映射客户物理内存到实际机器内存 （PA -> MA）。
 
 ### KVM存储虚拟化
+KVM 的存储虚拟化是通过存储池（Storage Pool）和卷（Volume）来管理的。
+
 
 ### LVM类型的Storage Pool
 
