@@ -88,13 +88,60 @@ KVM 的内存虚拟化是通过内存页共享实现的。
 ### KVM存储虚拟化
 KVM 的存储虚拟化是通过存储池（Storage Pool）和卷（Volume）来管理的。
 
+Storage Pool 是宿主机上可以看到的一片存储空间，可以是多种类型。
+Volume 是在 Storage Pool 中划分出的一块空间，宿主机将 Volume 分配给虚拟机，Volume 在虚拟机中看到的就是一块硬盘。
 
-### LVM类型的Storage Pool
+#### 目录类型的Strorage Pool
+文件目录是最常用的Storage Pool类型。  
+KVM将宿主机目录/var/lib/libvirt/images/ 作为默认的 Storage Pool  
+Volume 就是该目录下面的文件了，一个文件就是一个 Volume。  
+
+使用文件做 Volume 有很多优点：存储方便、移植性好、可复制、可远程访问
+
+#### LVM类型的Storage Pool
+> 物理卷（PV）：是物理磁盘或分区，可以是整个硬盘或者硬盘的一部分。
+> 卷组（VG）：由多个物理卷组成，可以看作是PV的集合。
+> 逻辑卷（LV）：VG中画出来的一块逻辑磁盘
+![volume](./images/OpenStack/volume.png)
+
+不仅一个文件可以分配给客户机作为虚拟磁盘，宿主机上 VG 中的 LV 也可以作为虚拟磁盘分配给虚拟机使用。  
+不过，LV 由于没有磁盘的 MBR 引导记录，不能作为虚拟机的启动盘，只能作为数据盘使用。
+宿主机上的 VG 就是一个 Storage Pool，VG 中的 LV 就是 Volume。   
+LV 的优点是有较好的性能；不足的地方是管理和移动性方面不如镜像文件，而且不能通过网络远程使用。 
+
+#### 其他类型的Storage Pool
+KVM 还支持 iSCSI，Ceph 等多种类型的 Storage Pool
 
 ### KVM网络虚拟化
+> 网络虚拟化是虚拟化技术中最复杂的部分，学习难度最大
+#### Linux Bridge
+假设宿主机有 1 块与外网连接的物理网卡 eth0，上面跑了 1 个虚机 VM1，现在有个问题是：如何让 VM1 能够访问外网？
+
+至少有两种方案：
+
+1. 将物理网卡eth0直接分配给VM1，但随之带来的问题很多： 宿主机就没有网卡，无法访问了； 新的虚机，比如 VM2 也没有网卡。 下面看推荐的方案。
+
+2. 给 VM1 分配一个虚拟网卡 vnet0，通过 Linux Bridge  br0 将 eth0 和 vnet0 连接起来，如下图所示：
+![Linux Bridge](./images/OpenStack/LinuxBridge1.webp)
+Linux Bridge 是 Linux 上用来做 TCP/IP 二层协议交换的设备，其功能大家可以简单的理解为是一个二层交换机或者 Hub。多个网络设备可以连接到同一个 Linux Bridge，当某个设备收到数据包时，Linux Bridge 会将数据转发给其他设备。
+
+现在我们增加一个虚机 VM2，如下图所示：
+![Linux Bridge](./images/OpenStack/LinuxBridge2.webp)
+
+现在 VM1 和 VM2 之间可以通信，同时 VM1 和 VM2 也都可以与外网通信
 
 ### virbr0
+> virbr0 是 KVM 默认创建的一个 Bridge，其作用是为连接其上的虚机网卡提供 NAT 访问外网的功能。
 
 ### VLAN
 
 ### 云计算与OpenStack
+OpenStack is a cloud operating system that controls large pools of compute, storage, and networking resources throughout a datacenter, all managed through a dashboard that gives administrators control while empowering their users to provision resources through a web interface.
+
+## Openstack 核心
+### OpenStack 架构
+### Keystone
+### Glance
+### Nova
+### Neutron
+### Cinder
