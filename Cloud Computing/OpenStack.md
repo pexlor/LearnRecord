@@ -139,8 +139,43 @@ Linux Bridge 是 Linux 上用来做 TCP/IP 二层协议交换的设备，其功�
 OpenStack is a cloud operating system that controls large pools of compute, storage, and networking resources throughout a datacenter, all managed through a dashboard that gives administrators control while empowering their users to provision resources through a web interface.
 
 ## Openstack 核心
+
+
 ### OpenStack 架构
+作为 IaaS 层的云操作系统，OpenStack 为虚机提供并管理三大类资源：计算、网络和存储
+下图是 OpenStack 的架构图
+![Conceptual Architecture](./images/OpenStack/Conceptual_Architecture.png)
+
+Nova：管理 VM 的生命周期，是 OpenStack 中最核心的服务。
+Neutron：为 OpenStack 提供网络连接服务，负责创建和管理L2、L3 网络，为 VM 提供虚拟网络和物理网络连接。
+Glance：管理 VM 启动镜像，Nova 创建 VM 时将使用 Glance 提供的镜像。
+
+Cinder：为 VM 提供块存储服务。Cinder 提供的每一个 Volume 在 VM 看来就是一块虚拟硬盘，一般用作数据盘。
+
+Swift：提供对象存储服务。VM 可以通过 RESTful API 存放对象数据。作为可选的方案，Glance 可以将镜像存放在 Swift 中；Cinder 也可以将 Volume 备份到 Swift 中。
+
+Keystone：为 OpenStack 的各种服务提供认证和权限管理服务。简单的说，OpenStack 上的每一个操作都必须通过 Keystone 的审核.
+
+Ceilometer：提供 OpenStac k监控和计量服务，为报警、统计或计费提供数据。
+
+Horizon：为 OpenStack 用户提供一个 Web 的自服务 Portal。
+
+看看核心服务内部的组成结构：
+![Logical Architecture](./images/OpenStack/Logical_Architecture.png)
+
+上图描述的是 Neutron 服务各个组成部分以及各组件之间的逻辑关系。 而在实际的部署方案上，各个组件可以部署到不同的物理节点上。
+
+OpenStack 本身是一个分布式系统，不但各个服务可以分布部署，服务中的组件也可以分布部署。 
+这种分布式特性让 OpenStack 具备极大的灵活性、伸缩性和高可用性。
+
 ### Keystone
+Keystone 作为 OpenStack 的基础支持服务，Keystone 负责：
+1. 管理用户及其权限
+
+2. 维护 OpenStack Services 的 Endpoint
+
+3. Authentication（认证）和 Authorization（鉴权）
+
 ### Glance
 ### Nova
 ### Neutron
