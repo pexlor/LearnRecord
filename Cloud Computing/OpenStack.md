@@ -177,6 +177,9 @@ Keystone 作为 OpenStack 的基础支持服务，Keystone 负责：
 3. Authentication（认证）和 Authorization（鉴权）
 
 ### Glance
+
 ### Nova
+
 ### Neutron
+
 ### Cinder
